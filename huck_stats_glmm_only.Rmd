@@ -19,6 +19,7 @@ Task 2: Assess the movement rates of grizzly bears feeding in huckleberry patche
 ## Load packages and data
 ```{r Load packages and data, results='hide', message=FALSE, warning=FALSE}
 ## load packages
+library(renv)
 library(readxl)
 library(janitor)
 library(lme4)
@@ -30,6 +31,7 @@ library(forcats)
 library(sf)
 library(lubridate)
 library(terra)
+library(emmeans)
 library(multcomp)
 library(tidyverse)
 
@@ -115,7 +117,7 @@ ggplot(summar.stats, aes(x=name, y=prop.germinated, ymin=prop.germinated-se.prop
         plot.title = element_text(size=22),
         plot.subtitle = element_text(size=17))
 
-
+ggsave("plots/barplot.png", width=8, heigh=5, units="in", dpi=300, bg="white")
 ```
 
 ## Model
@@ -140,8 +142,7 @@ emmeans(m0, list(pairwise ~ name), adjust = "tukey")$`pairwise differences of na
 ```{r glmm,  message=FALSE, warning=FALSE}
 
 # fit random effect model that accounts for id via a nested random effect of id on the intercept
-m1 <- glmer(prop.germ ~ name_compress + days.factor + (1 | units) + (1|jiffy), family = "binomial", weights = n_seeds, data = df)
-
+m1 <- glmer(prop.germ ~ name_compress + days.factor + (1|id/jiffy), family = "binomial", weights = n_seeds, data = df)
 summary(m1)
 
 # plot odds ratios
@@ -154,27 +155,28 @@ sjPlot::plot_model(m1,
 sjPlot::tab_model(m1)
 
 # pairwise significance
+#emmeans(m1, list(pairwise ~ name_compress), adjust = "tukey")$`pairwise differences of name` %>% kable()
 summary(glht(m1, linfct=c("name_compressSeedsfromberry - name_compressSeedsfromscat == 0",
                           "name_compressSeedsfromscat - name_compressMixedscat == 0")))
 
 ```
 
 ## test for days since
-```{r glmm days,  message=FALSE, warning=FALSE}
+```{r glmm.dayssince,  message=FALSE, warning=FALSE}
 
 # fit random effect model that accounts for id via a nested random effect of id on the intercept
-m1_30 <- glmer(prop.germ ~ name_compress + (1 | units) + (1|jiffy), family = "binomial", weights = n_seeds, data = df%>%filter(days==30))
+m1_30 <- glmer(prop.germ ~ name_compress + (1|id/jiffy), family = "binomial", weights = n_seeds, data = df%>%filter(days==30))
 summary(m1_30)
 # pairwise significance
-#emmeans(m1, list(pairwise ~ name_compress), adjust = "tukey")$`pairwise differences of name` %>% kable()
+#emmeans(m1_30, list(pairwise ~ name_compress), adjust = "tukey")$`pairwise differences of name` %>% kable()
 summary(glht(m1_30, linfct=c("name_compressSeedsfromberry - name_compressSeedsfromscat == 0",
                           "name_compressSeedsfromscat - name_compressMixedscat == 0")))
 
 
-m1_60 <- glmer(prop.germ ~ name_compress + (1 | units) + (1|jiffy), family = "binomial", weights = n_seeds, data = df%>%filter(days==60))
+m1_60 <- glmer(prop.germ ~ name_compress + (1|id/jiffy), family = "binomial", weights = n_seeds, data = df%>%filter(days==60))
 summary(m1_60)
-
 # pairwise significance
+#emmeans(m1_60, list(pairwise ~ name_compress), adjust = "tukey")$`pairwise differences of name` %>% kable()
 summary(glht(m1_60, linfct=c("name_compressSeedsfromberry - name_compressSeedsfromscat == 0",
                           "name_compressSeedsfromscat - name_compressMixedscat == 0")))
 
@@ -184,7 +186,7 @@ summary(glht(m1_60, linfct=c("name_compressSeedsfromberry - name_compressSeedsfr
 ### Double check that model is same regardless of specification (all good)
 ## this time don't weight, just include raw data
 y <- cbind(df$total_seedlings, df$n_seeds - df$total_seedlings)
-model <- glmer(y ~ name_compress + days.factor + (1 | units) + (1|jiffy), family = "binomial", data = df)
+model <- glmer(y ~ name_compress + days.factor + (1|id/jiffy), family = "binomial", data = df)
 
 # plot odds ratios
 summary(model)
@@ -203,12 +205,12 @@ summary(glht(model, linfct=c("name_compressSeedsfromberry - name_compressSeedsfr
 ```
 
 # Germination Conclusion
-Results suggest that A was much worse than all treatments (p<0.001), C was better than D (p<0.001), and B was better than D (p=0.05). One small difference from our previous approach is now we don't have significant differences between B and C (p=0.47). Qualitatively B germinated more than C, but statistically we didn't have the sample size/precision to resolve the difference.
+Results suggest that A was much worse than all treatments (p<0.001), C was better than D (p<0.005), and B was better than D (p=0.05). We did not detect a significant difference between B and C (p=0.24). Qualitatively B germinated more than C, and the effect size was actually larger than for C to D, but statistically we didn't have the sample size/precision to resolve the difference between B and C.
 
 
 #Task 2: Analyze dispersal potential using collar data and gut retention times
 
-##load and clean telemetry data
+## load and clean telemetry data
 ```{r Load and clean telem data, results='hide', message=FALSE, warning=FALSE}
 ev.grizz <- read.csv(here::here("data","EVcollar_Relocs_raw.csv"))
 
@@ -253,17 +255,11 @@ keep <- ev.grizz%>%
 ev.grizz <- ev.grizz%>%filter(id_yr%in%keep)
 ```
 
-##extract huckleberry data to points
+## extract huckleberry data to points
 ```{r Huck to points, results='hide', message=FALSE, warning=FALSE}
 ##huck
-
-##import big version and crop smaller so it uploads to git
-# terra::rast(here::here("data/VACCMEM_kcal.tif"))%>%
-#   crop(st_bbox(ev.grizz))%>%
-#   writeRaster("data/VACCMEM_kcal_clip.tif")
-
-huck <- terra::rast(here::here("data/VACCMEM_kcal_clip.tif"))
-
+huck <- terra::rast(here::here("data/VACCMEM_kcal.tif"))
+#plot(elev)
 
 ##convert to terra raster 
 pts.terra <- ev.grizz%>%terra::vect()
@@ -301,7 +297,7 @@ ev.grizz.huck<- ev.grizz%>%
 ```
 
 
-##analyze movements
+## analyze movements
 ```{r mvmt, results='hide', message=FALSE, warning=FALSE}
 ##get step length and fix rate
 dist <- ev.grizz.huck%>%
@@ -433,7 +429,7 @@ dist_stepped6.boot <- rbind(dist_stepped6.boot,a)
 }
 
 dist_stepped6.boot%>%
-  summarise_at(c("speed","dist6","dist6_max"), c(mean=mean,sd=sd), na.rm = TRUE)%>%kable()
+  summarise_at(c("speed","dist6","dist6_max"), c(mean=mean,sd=sd), na.rm = TRUE)
 
 
 ##15 hour
@@ -463,6 +459,6 @@ for(i in 1:boot.n){
 }
 
 dist_stepped15.boot%>%
-  summarise_at(c("speed","dist15","dist15_max"), c(mean=mean,sd=sd), na.rm = TRUE)%>%kable()
+  summarise_at(c("speed","dist15","dist15_max"), c(mean=mean,sd=sd), na.rm = TRUE)
 ```
 
