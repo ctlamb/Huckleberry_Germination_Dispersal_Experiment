@@ -1,7 +1,7 @@
 Effects of Bear Endozoochory on Germination and Disperal
 ================
 Clayton T. Lamb
-17 June, 2024
+26 August, 2024
 
 # Purpose
 
@@ -21,6 +21,7 @@ huckleberry patches to estimate potential seed dispersal.
 
 ``` r
 ## load packages
+library(renv)
 library(readxl)
 library(janitor)
 library(lme4)
@@ -32,6 +33,7 @@ library(forcats)
 library(sf)
 library(lubridate)
 library(terra)
+library(emmeans)
 library(multcomp)
 library(tidyverse)
 
@@ -121,52 +123,55 @@ ggplot(summar.stats, aes(x=name, y=prop.germinated, ymin=prop.germinated-se.prop
 
 ![](README_files/figure-gfm/prep-1.png)<!-- -->
 
+``` r
+ggsave("plots/barplot.png", width=8, heigh=5, units="in", dpi=300, bg="white")
+```
+
 ## Model
 
 ## with random effect accounting for the nested structure of data \[repeat samples from same berry or scat)
 
 ``` r
 # fit random effect model that accounts for id via a nested random effect of id on the intercept
-m1 <- glmer(prop.germ ~ name_compress + days.factor + (1 | units) + (1|jiffy), family = "binomial", weights = n_seeds, data = df)
-
+m1 <- glmer(prop.germ ~ name_compress + days.factor + (1|id/jiffy), family = "binomial", weights = n_seeds, data = df)
 summary(m1)
 ```
 
     ## Generalized linear mixed model fit by maximum likelihood (Laplace Approximation) ['glmerMod']
     ##  Family: binomial  ( logit )
-    ## Formula: prop.germ ~ name_compress + days.factor + (1 | units) + (1 |      jiffy)
+    ## Formula: prop.germ ~ name_compress + days.factor + (1 | id/jiffy)
     ##    Data: df
     ## Weights: n_seeds
     ## 
     ##      AIC      BIC   logLik deviance df.resid 
-    ##   1941.1   1974.4   -963.5   1927.1      857 
+    ##   1946.6   1979.9   -966.3   1932.6      857 
     ## 
     ## Scaled residuals: 
     ##     Min      1Q  Median      3Q     Max 
-    ## -1.8400 -0.4791 -0.2022  0.2213  1.9163 
+    ## -1.7767 -0.4331 -0.1920  0.2165  2.0930 
     ## 
     ## Random effects:
-    ##  Groups Name        Variance Std.Dev.
-    ##  jiffy  (Intercept) 1.380    1.175   
-    ##  units  (Intercept) 2.141    1.463   
-    ## Number of obs: 864, groups:  jiffy, 432; units, 222
+    ##  Groups   Name        Variance Std.Dev.
+    ##  jiffy:id (Intercept) 1.9728   1.4046  
+    ##  id       (Intercept) 0.5694   0.7546  
+    ## Number of obs: 864, groups:  jiffy:id, 432; id, 9
     ## 
     ## Fixed effects:
     ##                             Estimate Std. Error z value Pr(>|z|)    
-    ## (Intercept)                 -7.59455    0.38971 -19.488  < 2e-16 ***
-    ## name_compressSeedsfromberry  5.95986    0.41757  14.273  < 2e-16 ***
-    ## name_compressSeedsfromscat   5.20492    0.72734   7.156 8.30e-13 ***
-    ## name_compressMixedscat       4.45396    0.72610   6.134 8.56e-10 ***
-    ## days.factor60 days           1.28553    0.08928  14.399  < 2e-16 ***
+    ## (Intercept)                 -7.20250    0.53365 -13.497  < 2e-16 ***
+    ## name_compressSeedsfromberry  5.63819    0.33237  16.964  < 2e-16 ***
+    ## name_compressSeedsfromscat   4.76079    0.63230   7.529 5.10e-14 ***
+    ## name_compressMixedscat       4.03821    0.63271   6.382 1.74e-10 ***
+    ## days.factor60 days           1.28649    0.08927  14.412  < 2e-16 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## 
     ## Correlation of Fixed Effects:
     ##                  (Intr) nm_cmprssSdsfrmb nm_cmprssSdsfrms nm_cmM
-    ## nm_cmprssSdsfrmb -0.859                                         
-    ## nm_cmprssSdsfrms -0.515  0.452                                  
-    ## nm_cmprssMx      -0.512  0.451            0.957                 
-    ## dys.fctr60d      -0.227  0.083            0.037            0.030
+    ## nm_cmprssSdsfrmb -0.494                                         
+    ## nm_cmprssSdsfrms -0.816  0.391                                  
+    ## nm_cmprssMx      -0.816  0.391            0.926                 
+    ## dys.fctr60d      -0.165  0.103            0.042            0.035
 
 ``` r
 # plot odds ratios
@@ -225,10 +230,10 @@ p
 name compress<br>\[Seedsfromberry\]
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-387.56
+280.95
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-170.96 – 878.56
+146.46 – 538.95
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
 <strong>\<0.001</strong>
@@ -239,10 +244,10 @@ name compress<br>\[Seedsfromberry\]
 name compress<br>\[Seedsfromscat\]
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-182.17
+116.84
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-43.79 – 757.85
+33.84 – 403.45
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
 <strong>\<0.001</strong>
@@ -253,10 +258,10 @@ name compress<br>\[Seedsfromscat\]
 name compress \[Mixedscat\]
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-85.97
+56.72
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-20.71 – 356.77
+16.41 – 196.04
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
 <strong>\<0.001</strong>
@@ -291,31 +296,24 @@ Random Effects
 </tr>
 <tr>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">
-τ<sub>00</sub> <sub>jiffy</sub>
+τ<sub>00</sub> <sub>jiffy:id</sub>
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="3">
-1.38
+1.97
 </td>
 <tr>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">
-τ<sub>00</sub> <sub>units</sub>
+τ<sub>00</sub> <sub>id</sub>
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="3">
-2.14
+0.57
 </td>
 <tr>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">
 ICC
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="3">
-0.52
-</td>
-<tr>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">
-N <sub>units</sub>
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="3">
-222
+0.44
 </td>
 <tr>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">
@@ -323,6 +321,13 @@ N <sub>jiffy</sub>
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="3">
 432
+</td>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">
+N <sub>id</sub>
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="3">
+9
 </td>
 <tr>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm; border-top:1px solid;">
@@ -337,13 +342,14 @@ Observations
 Marginal R<sup>2</sup> / Conditional R<sup>2</sup>
 </td>
 <td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="3">
-0.459 / 0.739
+0.466 / 0.699
 </td>
 </tr>
 </table>
 
 ``` r
 # pairwise significance
+#emmeans(m1, list(pairwise ~ name_compress), adjust = "tukey")$`pairwise differences of name` %>% kable()
 summary(glht(m1, linfct=c("name_compressSeedsfromberry - name_compressSeedsfromscat == 0",
                           "name_compressSeedsfromscat - name_compressMixedscat == 0")))
 ```
@@ -352,12 +358,12 @@ summary(glht(m1, linfct=c("name_compressSeedsfromberry - name_compressSeedsfroms
     ##   Simultaneous Tests for General Linear Hypotheses
     ## 
     ## Fit: glmer(formula = prop.germ ~ name_compress + days.factor + (1 | 
-    ##     units) + (1 | jiffy), data = df, family = "binomial", weights = n_seeds)
+    ##     id/jiffy), data = df, family = "binomial", weights = n_seeds)
     ## 
     ## Linear Hypotheses:
-    ##                                                               Estimate Std. Error z value Pr(>|z|)    
-    ## name_compressSeedsfromberry - name_compressSeedsfromscat == 0   0.7549     0.6549   1.153 0.432965    
-    ## name_compressSeedsfromscat - name_compressMixedscat == 0        0.7510     0.2128   3.528 0.000836 ***
+    ##                                                               Estimate Std. Error z value Pr(>|z|)   
+    ## name_compressSeedsfromberry - name_compressSeedsfromscat == 0   0.8774     0.5881   1.492   0.2498   
+    ## name_compressSeedsfromscat - name_compressMixedscat == 0        0.7226     0.2427   2.977   0.0058 **
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## (Adjusted p values reported -- single-step method)
@@ -366,47 +372,47 @@ summary(glht(m1, linfct=c("name_compressSeedsfromberry - name_compressSeedsfroms
 
 ``` r
 # fit random effect model that accounts for id via a nested random effect of id on the intercept
-m1_30 <- glmer(prop.germ ~ name_compress + (1 | units) + (1|jiffy), family = "binomial", weights = n_seeds, data = df%>%filter(days==30))
+m1_30 <- glmer(prop.germ ~ name_compress + (1|id/jiffy), family = "binomial", weights = n_seeds, data = df%>%filter(days==30))
 summary(m1_30)
 ```
 
     ## Generalized linear mixed model fit by maximum likelihood (Laplace Approximation) ['glmerMod']
     ##  Family: binomial  ( logit )
-    ## Formula: prop.germ ~ name_compress + (1 | units) + (1 | jiffy)
+    ## Formula: prop.germ ~ name_compress + (1 | id/jiffy)
     ##    Data: df %>% filter(days == 30)
     ## Weights: n_seeds
     ## 
     ##      AIC      BIC   logLik deviance df.resid 
-    ##    900.3    924.7   -444.2    888.3      426 
+    ##    900.1    924.6   -444.1    888.1      426 
     ## 
     ## Scaled residuals: 
     ##     Min      1Q  Median      3Q     Max 
-    ## -0.9500 -0.5851 -0.1207  0.1035  2.1773 
+    ## -0.9433 -0.5748 -0.1467  0.2532  2.3389 
     ## 
     ## Random effects:
-    ##  Groups Name        Variance Std.Dev.
-    ##  jiffy  (Intercept) 1.0321   1.0159  
-    ##  units  (Intercept) 0.7991   0.8939  
-    ## Number of obs: 432, groups:  jiffy, 432; units, 222
+    ##  Groups   Name        Variance Std.Dev.
+    ##  jiffy:id (Intercept) 1.2527   1.1192  
+    ##  id       (Intercept) 0.3632   0.6027  
+    ## Number of obs: 432, groups:  jiffy:id, 432; id, 9
     ## 
     ## Fixed effects:
     ##                             Estimate Std. Error z value Pr(>|z|)    
-    ## (Intercept)                  -7.4972     0.6261 -11.974  < 2e-16 ***
-    ## name_compressSeedsfromberry   6.2120     0.6286   9.883  < 2e-16 ***
-    ## name_compressSeedsfromscat    5.3365     0.7462   7.151 8.61e-13 ***
-    ## name_compressMixedscat        4.7017     0.7387   6.365 1.96e-10 ***
+    ## (Intercept)                  -7.3312     0.6526 -11.234  < 2e-16 ***
+    ## name_compressSeedsfromberry   6.0991     0.5615  10.862  < 2e-16 ***
+    ## name_compressSeedsfromscat    5.1404     0.7113   7.227 4.94e-13 ***
+    ## name_compressMixedscat        4.5186     0.7049   6.410 1.45e-10 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## 
     ## Correlation of Fixed Effects:
     ##                  (Intr) nm_cmprssSdsfrmb nm_cmprssSdsfrms
-    ## nm_cmprssSdsfrmb -0.953                                  
-    ## nm_cmprssSdsfrms -0.828  0.791                           
-    ## nm_cmprssMx      -0.828  0.792            0.945
+    ## nm_cmprssSdsfrmb -0.807                                  
+    ## nm_cmprssSdsfrms -0.891  0.715                           
+    ## nm_cmprssMx      -0.894  0.716            0.934
 
 ``` r
 # pairwise significance
-#emmeans(m1, list(pairwise ~ name_compress), adjust = "tukey")$`pairwise differences of name` %>% kable()
+#emmeans(m1_30, list(pairwise ~ name_compress), adjust = "tukey")$`pairwise differences of name` %>% kable()
 summary(glht(m1_30, linfct=c("name_compressSeedsfromberry - name_compressSeedsfromscat == 0",
                           "name_compressSeedsfromscat - name_compressMixedscat == 0")))
 ```
@@ -414,59 +420,59 @@ summary(glht(m1_30, linfct=c("name_compressSeedsfromberry - name_compressSeedsfr
     ## 
     ##   Simultaneous Tests for General Linear Hypotheses
     ## 
-    ## Fit: glmer(formula = prop.germ ~ name_compress + (1 | units) + (1 | 
-    ##     jiffy), data = df %>% filter(days == 30), family = "binomial", 
-    ##     weights = n_seeds)
+    ## Fit: glmer(formula = prop.germ ~ name_compress + (1 | id/jiffy), data = df %>% 
+    ##     filter(days == 30), family = "binomial", weights = n_seeds)
     ## 
     ## Linear Hypotheses:
     ##                                                               Estimate Std. Error z value Pr(>|z|)  
-    ## name_compressSeedsfromberry - name_compressSeedsfromscat == 0   0.8755     0.4586   1.909   0.1067  
-    ## name_compressSeedsfromscat - name_compressMixedscat == 0        0.6348     0.2463   2.577   0.0196 *
+    ## name_compressSeedsfromberry - name_compressSeedsfromscat == 0   0.9586     0.5000   1.917   0.1051  
+    ## name_compressSeedsfromscat - name_compressMixedscat == 0        0.6218     0.2579   2.411   0.0311 *
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## (Adjusted p values reported -- single-step method)
 
 ``` r
-m1_60 <- glmer(prop.germ ~ name_compress + (1 | units) + (1|jiffy), family = "binomial", weights = n_seeds, data = df%>%filter(days==60))
+m1_60 <- glmer(prop.germ ~ name_compress + (1|id/jiffy), family = "binomial", weights = n_seeds, data = df%>%filter(days==60))
 summary(m1_60)
 ```
 
     ## Generalized linear mixed model fit by maximum likelihood (Laplace Approximation) ['glmerMod']
     ##  Family: binomial  ( logit )
-    ## Formula: prop.germ ~ name_compress + (1 | units) + (1 | jiffy)
+    ## Formula: prop.germ ~ name_compress + (1 | id/jiffy)
     ##    Data: df %>% filter(days == 60)
     ## Weights: n_seeds
     ## 
     ##      AIC      BIC   logLik deviance df.resid 
-    ##   1252.7   1277.1   -620.4   1240.7      426 
+    ##   1257.4   1281.8   -622.7   1245.4      426 
     ## 
     ## Scaled residuals: 
     ##     Min      1Q  Median      3Q     Max 
-    ## -1.3253 -0.2476 -0.1579  0.2737  1.5271 
+    ## -1.1217 -0.4291 -0.2170  0.2182  1.7094 
     ## 
     ## Random effects:
-    ##  Groups Name        Variance Std.Dev.
-    ##  jiffy  (Intercept) 1.047    1.023   
-    ##  units  (Intercept) 2.054    1.433   
-    ## Number of obs: 432, groups:  jiffy, 432; units, 222
+    ##  Groups   Name        Variance Std.Dev.
+    ##  jiffy:id (Intercept) 1.6427   1.2817  
+    ##  id       (Intercept) 0.6941   0.8331  
+    ## Number of obs: 432, groups:  jiffy:id, 432; id, 9
     ## 
     ## Fixed effects:
     ##                             Estimate Std. Error z value Pr(>|z|)    
-    ## (Intercept)                  -5.8983     0.3745 -15.749  < 2e-16 ***
-    ## name_compressSeedsfromberry   5.4243     0.4191  12.943  < 2e-16 ***
-    ## name_compressSeedsfromscat    4.7560     0.7148   6.654 2.86e-11 ***
-    ## name_compressMixedscat        3.9870     0.7116   5.603 2.11e-08 ***
+    ## (Intercept)                  -5.4946     0.5600  -9.811  < 2e-16 ***
+    ## name_compressSeedsfromberry   5.0648     0.3284  15.423  < 2e-16 ***
+    ## name_compressSeedsfromscat    4.3196     0.6785   6.367 1.93e-10 ***
+    ## name_compressMixedscat        3.5608     0.6760   5.267 1.38e-07 ***
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## 
     ## Correlation of Fixed Effects:
     ##                  (Intr) nm_cmprssSdsfrmb nm_cmprssSdsfrms
-    ## nm_cmprssSdsfrmb -0.864                                  
-    ## nm_cmprssSdsfrms -0.520  0.449                           
-    ## nm_cmprssMx      -0.520  0.449            0.955
+    ## nm_cmprssSdsfrmb -0.438                                  
+    ## nm_cmprssSdsfrms -0.817  0.348                           
+    ## nm_cmprssMx      -0.819  0.347            0.934
 
 ``` r
 # pairwise significance
+#emmeans(m1_60, list(pairwise ~ name_compress), adjust = "tukey")$`pairwise differences of name` %>% kable()
 summary(glht(m1_60, linfct=c("name_compressSeedsfromberry - name_compressSeedsfromscat == 0",
                           "name_compressSeedsfromscat - name_compressMixedscat == 0")))
 ```
@@ -474,14 +480,13 @@ summary(glht(m1_60, linfct=c("name_compressSeedsfromberry - name_compressSeedsfr
     ## 
     ##   Simultaneous Tests for General Linear Hypotheses
     ## 
-    ## Fit: glmer(formula = prop.germ ~ name_compress + (1 | units) + (1 | 
-    ##     jiffy), data = df %>% filter(days == 60), family = "binomial", 
-    ##     weights = n_seeds)
+    ## Fit: glmer(formula = prop.germ ~ name_compress + (1 | id/jiffy), data = df %>% 
+    ##     filter(days == 60), family = "binomial", weights = n_seeds)
     ## 
     ## Linear Hypotheses:
-    ##                                                               Estimate Std. Error z value Pr(>|z|)    
-    ## name_compressSeedsfromberry - name_compressSeedsfromscat == 0   0.6682     0.6460   1.034 0.507622    
-    ## name_compressSeedsfromscat - name_compressMixedscat == 0        0.7690     0.2142   3.590 0.000661 ***
+    ##                                                               Estimate Std. Error z value Pr(>|z|)   
+    ## name_compressSeedsfromberry - name_compressSeedsfromscat == 0   0.7452     0.6428   1.159  0.42753   
+    ## name_compressSeedsfromscat - name_compressMixedscat == 0        0.7588     0.2454   3.092  0.00396 **
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## (Adjusted p values reported -- single-step method)
@@ -489,16 +494,16 @@ summary(glht(m1_60, linfct=c("name_compressSeedsfromberry - name_compressSeedsfr
 # Germination Conclusion
 
 Results suggest that A was much worse than all treatments (p\<0.001), C
-was better than D (p\<0.001), and B was better than D (p=0.05). One
-small difference from our previous approach is now we don’t have
-significant differences between B and C (p=0.47). Qualitatively B
-germinated more than C, but statistically we didn’t have the sample
-size/precision to resolve the difference.
+was better than D (p\<0.005), and B was better than D (p=0.05). We did
+not detect a significant difference between B and C (p=0.24).
+Qualitatively B germinated more than C, and the effect size was actually
+larger than for C to D, but statistically we didn’t have the sample
+size/precision to resolve the difference between B and C.
 
 \#Task 2: Analyze dispersal potential using collar data and gut
 retention times
 
-\##load and clean telemetry data
+## load and clean telemetry data
 
 ``` r
 ev.grizz <- read.csv(here::here("data","EVcollar_Relocs_raw.csv"))
@@ -544,18 +549,12 @@ keep <- ev.grizz%>%
 ev.grizz <- ev.grizz%>%filter(id_yr%in%keep)
 ```
 
-\##extract huckleberry data to points
+## extract huckleberry data to points
 
 ``` r
 ##huck
-
-##import big version and crop smaller so it uploads to git
-# terra::rast(here::here("data/VACCMEM_kcal.tif"))%>%
-#   crop(st_bbox(ev.grizz))%>%
-#   writeRaster("data/VACCMEM_kcal_clip.tif")
-
-huck <- terra::rast(here::here("data/VACCMEM_kcal_clip.tif"))
-
+huck <- terra::rast(here::here("data/VACCMEM_kcal.tif"))
+#plot(elev)
 
 ##convert to terra raster 
 pts.terra <- ev.grizz%>%terra::vect()
@@ -592,7 +591,7 @@ ev.grizz.huck<- ev.grizz%>%
   filter(month%in%c(8:9) & id_yr%in%huck.bears.keep$id_yr) ##select Aug and Sept
 ```
 
-\##analyze movements
+## analyze movements
 
 ``` r
 ##get step length and fix rate
@@ -735,7 +734,7 @@ dist_stepped6.boot <- rbind(dist_stepped6.boot,a)
 }
 
 dist_stepped6.boot%>%
-  summarise_at(c("speed","dist6","dist6_max"), c(mean=mean,sd=sd), na.rm = TRUE)%>%kable()
+  summarise_at(c("speed","dist6","dist6_max"), c(mean=mean,sd=sd), na.rm = TRUE)
 
 
 ##15 hour
@@ -765,5 +764,5 @@ for(i in 1:boot.n){
 }
 
 dist_stepped15.boot%>%
-  summarise_at(c("speed","dist15","dist15_max"), c(mean=mean,sd=sd), na.rm = TRUE)%>%kable()
+  summarise_at(c("speed","dist15","dist15_max"), c(mean=mean,sd=sd), na.rm = TRUE)
 ```
